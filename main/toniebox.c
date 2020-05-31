@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -138,7 +139,7 @@ static void sound_task(void *arg) {
         ESP_LOGI(TAG, "Event received [source_type: %d, cmd: %d]", msg.source_type, msg.cmd);
 
         // volume down
-        if ((int)msg.data == get_input_rec_id() && msg.cmd == PERIPH_BUTTON_PRESSED) {
+        if ((int)msg.data == get_input_rec_id() && msg.cmd == PERIPH_BUTTON_RELEASE) {
             int player_volume;
             audio_hal_get_volume(board_handle->audio_hal, &player_volume);
             player_volume -= 3;
@@ -150,8 +151,22 @@ static void sound_task(void *arg) {
             continue;
         }
 
+        // start: rewind
+        if ((int)msg.data == get_input_rec_id() && msg.cmd == PERIPH_BUTTON_LONG_PRESSED) {
+
+            ESP_LOGI(TAG, "rewind start");
+            continue;
+        }
+
+        // stop: rewind
+        if ((int)msg.data == get_input_rec_id() && msg.cmd == PERIPH_BUTTON_LONG_RELEASE) {
+
+            ESP_LOGI(TAG, "rewind stop");
+            continue;
+        }
+
         // volume up
-        if ((int)msg.data == get_input_mode_id() && msg.cmd == PERIPH_BUTTON_PRESSED) {
+        if ((int)msg.data == get_input_mode_id() && msg.cmd == PERIPH_BUTTON_RELEASE) {
             int player_volume;
             audio_hal_get_volume(board_handle->audio_hal, &player_volume);
             player_volume += 3;
@@ -163,6 +178,20 @@ static void sound_task(void *arg) {
             continue;
         }
 
+        // start: fast-forward
+        if ((int)msg.data == get_input_mode_id() && msg.cmd == PERIPH_BUTTON_LONG_PRESSED) {
+            
+            ESP_LOGI(TAG, "fast-forward start");
+            continue;
+        }
+
+        // stop: fast-forward
+        if ((int)msg.data == get_input_mode_id() && msg.cmd == PERIPH_BUTTON_LONG_RELEASE) {
+            
+            ESP_LOGI(TAG, "fast-forward stop");
+            continue;
+        }
+
         // start file
         if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.source == (void *) mp3_decoder
             && msg.cmd == AEL_MSG_CMD_REPORT_MUSIC_INFO) {
@@ -170,7 +199,7 @@ static void sound_task(void *arg) {
             audio_element_getinfo(mp3_decoder, &music_info);
 
             ESP_LOGI(TAG, "Receive music info from mp3 decoder, sample_rates=%d, bits=%d, ch=%d",
-                     music_info.sample_rates, music_info.bits, music_info.channels);
+                    music_info.sample_rates, music_info.bits, music_info.channels);
 
             audio_element_setinfo(i2s_stream_writer, &music_info);
             i2s_stream_set_clk(i2s_stream_writer, music_info.sample_rates, music_info.bits, music_info.channels);

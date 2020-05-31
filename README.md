@@ -26,7 +26,8 @@ git submodule update --init --recursive
 
 ## TODO
 
-- [ ] Store volume and read value on start
 - [ ] Store last play position and play from last position
+- [ ] Store volume and read value on start
 - [ ] write empty file with TAG no if file is not found
+- [ ] fast forward / rewind
 - [ ] can we us the internal event system to connect I2C/RFID?
