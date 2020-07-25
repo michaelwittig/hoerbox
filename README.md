@@ -32,8 +32,8 @@ git submodule update --init --recursive
 - [x] Store last play position and play from last position
 - [ ] volume max setting
 - [x] Store volume and read value on start
-- [ ] turn off if no music is played for x minutes
+- [x] turn off if no music is played for x minutes
 - [ ] write empty file with TAG no if file is not found
 - [ ] Reset last played position by pressing both keys long?
-- [ ] fast forward / rewind
+- [x] fast forward / rewind
 - [ ] can we us the internal event system to connect I2C/RFID?

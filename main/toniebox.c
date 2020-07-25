@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include <time.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -28,10 +29,28 @@
 
 #include "rc522.h"
 
-static const char *TAG = "TONIE";
+static const char *TAG = "BOX";
+static const char *TAG_SOUND = "SOUND";
+static const char *TAG_RFID = "RFID";
+
+#define ONE_HOUR_IN_MICRO_SECONDS 3600000000
+#define SHUTDOWN_IF_NO_TAGS_CONSECUTIVELY 300
+
+static void play_beep_task(void *arg) {
+    ESP_LOGI(TAG, "Beep");
+    // FIXME play beep
+
+    ESP_LOGI(TAG, "Sleep");
+
+    // go into deep sleep to save energy
+    // you have to turn off/on the box to exit the sleep loop
+    esp_deep_sleep(ONE_HOUR_IN_MICRO_SECONDS);
+    // not reached vTaskDelete(NULL);
+}
 
 audio_pipeline_handle_t pipeline;
 audio_element_handle_t fatfs_stream_reader;
+int no_tags_consecutively = 0;
 
 static void rfid_task(void *arg) {
     ESP_ERROR_CHECK(rc522_init());
@@ -43,7 +62,7 @@ static void rfid_task(void *arg) {
     char previous_no[11];
     char sound_file[23];
     previous_no[0] = 0;
-    while(true) {
+    while(no_tags_consecutively < SHUTDOWN_IF_NO_TAGS_CONSECUTIVELY) {
         uint8_t* tag = rc522_get_tag();
         no[0] = 0;
         if(tag != NULL) {
@@ -54,17 +73,19 @@ static void rfid_task(void *arg) {
                 printf("%#x ", tag[i]);
             }
             printf("\n");*/
-            ESP_LOGI(TAG, "RFID tag found: %s", no);
+            ESP_LOGI(TAG_RFID, "RFID tag found: %s", no);
             free(tag);
+            no_tags_consecutively = 0;
         } else {
-            ESP_LOGI(TAG, "RFID tag not found");
+            no_tags_consecutively++;
+            ESP_LOGI(TAG_RFID, "RFID tag not found, no_tags_consecutively=%d", no_tags_consecutively);
         }
-        if (strcmp(previous_no, no) != 0) {
-            
+
+        if (previous_no[0] != 0) {
             // store previous position
             audio_element_info_t previous_info = {0};
             audio_element_getinfo(fatfs_stream_reader, &previous_info);
-            ESP_LOGI(TAG, "Last position for %s: %" PRId64, previous_no, previous_info.byte_pos);
+            ESP_LOGI(TAG_RFID, "Save last position for %s: %" PRId64, previous_no, previous_info.byte_pos);
             esp_err_t ret1 = nvs_set_i64(nvs_handle, previous_no, previous_info.byte_pos);
             if (ret1 == ESP_ERR_NVS_NOT_ENOUGH_SPACE) {
                 ESP_ERROR_CHECK(nvs_flash_erase());
@@ -72,14 +93,16 @@ static void rfid_task(void *arg) {
                 ret1 = nvs_set_i64(nvs_handle, previous_no, previous_info.byte_pos);
             } 
             ESP_ERROR_CHECK(ret1);
+        }
 
+        if (strcmp(previous_no, no) != 0) { // tag changed
             // stop pipelie
             audio_pipeline_stop(pipeline);
             audio_pipeline_wait_for_stop(pipeline);
             if (no[0] == 0) {
-                ESP_LOGI(TAG, "Stop");
+                ESP_LOGI(TAG_RFID, "Stop");
             } else {
-                ESP_LOGI(TAG, "Play %s: %s", no, sound_file);
+                ESP_LOGI(TAG_RFID, "Play %s: %s", no, sound_file);
                 audio_element_set_uri(fatfs_stream_reader, sound_file);
                 audio_pipeline_reset_ringbuffer(pipeline);
                 audio_pipeline_reset_elements(pipeline);
@@ -88,9 +111,9 @@ static void rfid_task(void *arg) {
                 int64_t position;
                 esp_err_t ret2 = nvs_get_i64(nvs_handle, no, &position);
                 if (ret2 == ESP_ERR_NVS_NOT_FOUND) {
-                    ESP_LOGI(TAG, "No previous position found for %s", no);
+                    ESP_LOGI(TAG_RFID, "No previous position found for %s", no);
                 } else if (ret2 == ESP_OK) {
-                    ESP_LOGI(TAG, "Previous position found for %s: %" PRId64, no, position);
+                    ESP_LOGI(TAG_RFID, "Previous position found for %s: %" PRId64, no, position);
                     audio_element_info_t info = {0};
                     audio_element_getinfo(fatfs_stream_reader, &info);
                     info.byte_pos = position;
@@ -120,62 +143,65 @@ static void rfid_task(void *arg) {
 
     nvs_close(nvs_handle);
 
+    ESP_LOGI(TAG_RFID, "Bye");
+
     vTaskDelete(NULL);
 }
 
 static void sound_task(void *arg) {
     audio_element_handle_t i2s_stream_writer, mp3_decoder;
 
-    ESP_LOGI(TAG, "Initialize peripherals management");
+    ESP_LOGI(TAG_SOUND, "Initialize peripherals management");
     esp_periph_config_t periph_cfg = DEFAULT_ESP_PERIPH_SET_CONFIG();
     esp_periph_set_handle_t set = esp_periph_set_init(&periph_cfg);
 
-    ESP_LOGI(TAG, "Initialize and start peripherals");
+    ESP_LOGI(TAG_SOUND, "Initialize and start peripherals");
     audio_board_key_init(set);
     audio_board_sdcard_init(set);
 
-    ESP_LOGI(TAG, "Start codec chip");
+    ESP_LOGI(TAG_SOUND, "Start codec chip");
     audio_board_handle_t board_handle = audio_board_init();
     audio_hal_ctrl_codec(board_handle->audio_hal, AUDIO_HAL_CODEC_MODE_DECODE, AUDIO_HAL_CTRL_START);
 
-    ESP_LOGI(TAG, "Create audio pipeline for playback");
+    ESP_LOGI(TAG_SOUND, "Create audio pipeline for playback");
     audio_pipeline_cfg_t pipeline_cfg = DEFAULT_AUDIO_PIPELINE_CONFIG();
     pipeline = audio_pipeline_init(&pipeline_cfg);
     mem_assert(pipeline);
 
-    ESP_LOGI(TAG, "Create fatfs stream to read data from sdcard");
+    ESP_LOGI(TAG_SOUND, "Create fatfs stream to read data from sdcard");
     fatfs_stream_cfg_t fatfs_cfg = FATFS_STREAM_CFG_DEFAULT();
     fatfs_cfg.type = AUDIO_STREAM_READER;
     fatfs_stream_reader = fatfs_stream_init(&fatfs_cfg);
 
-    ESP_LOGI(TAG, "Create i2s stream to write data to codec chip");
+    ESP_LOGI(TAG_SOUND, "Create i2s stream to write data to codec chip");
     i2s_stream_cfg_t i2s_cfg = I2S_STREAM_CFG_DEFAULT();
     i2s_cfg.type = AUDIO_STREAM_WRITER;
     i2s_stream_writer = i2s_stream_init(&i2s_cfg);
 
-    ESP_LOGI(TAG, "Create mp3 decoder to decode mp3 file");
+    ESP_LOGI(TAG_SOUND, "Create mp3 decoder to decode mp3 file");
     mp3_decoder_cfg_t mp3_cfg = DEFAULT_MP3_DECODER_CONFIG();
     mp3_decoder = mp3_decoder_init(&mp3_cfg);
 
-    ESP_LOGI(TAG, "Register all elements to audio pipeline");
+    ESP_LOGI(TAG_SOUND, "Register all elements to audio pipeline");
     audio_pipeline_register(pipeline, fatfs_stream_reader, "file");
     audio_pipeline_register(pipeline, mp3_decoder, "mp3");
     audio_pipeline_register(pipeline, i2s_stream_writer, "i2s");
 
-    ESP_LOGI(TAG, "Link it together [sdcard]-->fatfs_stream-->mp3_decoder-->i2s_stream-->[codec_chip]");
+    ESP_LOGI(TAG_SOUND, "Link it together [sdcard]-->fatfs_stream-->mp3_decoder-->i2s_stream-->[codec_chip]");
     audio_pipeline_link(pipeline, (const char *[]) {"file", "mp3", "i2s"}, 3);
 
-    ESP_LOGI(TAG, "Set up  event listener");
+    ESP_LOGI(TAG_SOUND, "Set up  event listener");
     audio_event_iface_cfg_t evt_cfg = AUDIO_EVENT_IFACE_DEFAULT_CFG();
     audio_event_iface_handle_t evt = audio_event_iface_init(&evt_cfg);
 
-    ESP_LOGI(TAG, "Listening event from all elements of pipeline");
+    ESP_LOGI(TAG_SOUND, "Listening event from all elements of pipeline");
     audio_pipeline_set_listener(pipeline, evt);
 
-    ESP_LOGI(TAG, "Listening event from peripherals");
+    ESP_LOGI(TAG_SOUND, "Listening event from peripherals");
     audio_event_iface_set_listener(esp_periph_set_get_event_iface(set), evt);
 
-    xTaskCreate(rfid_task, "RFID", 2048, NULL, configMAX_PRIORITIES - 3, NULL);
+    TaskHandle_t rfid_handle = NULL;
+    xTaskCreate(rfid_task, "RFID", 2048, NULL, configMAX_PRIORITIES - 3, &rfid_handle);
 
     // NVS init
     nvs_handle nvs_handle;
@@ -185,35 +211,40 @@ static void sound_task(void *arg) {
     int volume;
     esp_err_t ret = nvs_get_i32(nvs_handle, "volume", &volume);
     if (ret == ESP_ERR_NVS_NOT_FOUND) {
-        ESP_LOGI(TAG, "No previous volume found");
+        ESP_LOGI(TAG_SOUND, "No previous volume found");
     } else if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Previous volume %d", volume);
+        ESP_LOGI(TAG_SOUND, "Previous volume %d", volume);
         audio_hal_set_volume(board_handle->audio_hal, volume);
     } else {
         ESP_ERROR_CHECK(ret);
     }
 
-    ESP_LOGI(TAG, "Listen for all pipeline events");
+    time_t start = time(NULL);
+
+    ESP_LOGI(TAG_SOUND, "Listen for all pipeline events");
     while (1) {
         audio_event_iface_msg_t msg;
-        esp_err_t ret = audio_event_iface_listen(evt, &msg, portMAX_DELAY);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Event interface error : %d", ret);
-            continue;
+        esp_err_t ret = audio_event_iface_listen(evt, &msg, 2000 / portTICK_RATE_MS);
+        if (ret != ESP_OK) { // no event, timeout, do some global checks
+            if (no_tags_consecutively < SHUTDOWN_IF_NO_TAGS_CONSECUTIVELY) {
+                continue;
+            } else {
+                break;
+            }
         }
 
         if (msg.source_type == AUDIO_ELEMENT_TYPE_UNKNOW) {
-            ESP_LOGI(TAG, "Event received [source_type: AUDIO_ELEMENT_TYPE_UNKNOW, cmd: %d]", msg.cmd);
+            ESP_LOGI(TAG_SOUND, "Event received [source_type: AUDIO_ELEMENT_TYPE_UNKNOW, cmd: %d]", msg.cmd);
         } else if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT) {
-            ESP_LOGI(TAG, "Event received [source_type: AUDIO_ELEMENT_TYPE_ELEMENT, cmd: %d]", msg.cmd);
+            ESP_LOGI(TAG_SOUND, "Event received [source_type: AUDIO_ELEMENT_TYPE_ELEMENT, cmd: %d]", msg.cmd);
         } else if (msg.source_type == AUDIO_ELEMENT_TYPE_PLAYER) {
-            ESP_LOGI(TAG, "Event received [source_type: AUDIO_ELEMENT_TYPE_PLAYER, cmd: %d]", msg.cmd);
+            ESP_LOGI(TAG_SOUND, "Event received [source_type: AUDIO_ELEMENT_TYPE_PLAYER, cmd: %d]", msg.cmd);
         } else if (msg.source_type == AUDIO_ELEMENT_TYPE_SERVICE) {
-            ESP_LOGI(TAG, "Event received [source_type: AUDIO_ELEMENT_TYPE_SERVICE, cmd: %d]", msg.cmd);
+            ESP_LOGI(TAG_SOUND, "Event received [source_type: AUDIO_ELEMENT_TYPE_SERVICE, cmd: %d]", msg.cmd);
         }else if (msg.source_type == AUDIO_ELEMENT_TYPE_PERIPH) {
-            ESP_LOGI(TAG, "Event received [source_type: AUDIO_ELEMENT_TYPE_PERIPH, cmd: %d]", msg.cmd);
+            ESP_LOGI(TAG_SOUND, "Event received [source_type: AUDIO_ELEMENT_TYPE_PERIPH, cmd: %d]", msg.cmd);
         } else {
-            ESP_LOGI(TAG, "Event received [source_type: %d, cmd: %d]", msg.source_type, msg.cmd);
+            ESP_LOGI(TAG_SOUND, "Event received [source_type: %d, cmd: %d]", msg.source_type, msg.cmd);
         }
 
         // volume down
@@ -227,21 +258,33 @@ static void sound_task(void *arg) {
             audio_hal_set_volume(board_handle->audio_hal, player_volume);
             ESP_ERROR_CHECK(nvs_set_i32(nvs_handle, "volume", player_volume));
             ESP_ERROR_CHECK(nvs_commit(nvs_handle));
-            ESP_LOGI(TAG, "Volume decreased to %d %%", player_volume);
+            ESP_LOGI(TAG_SOUND, "Volume decreased to %d %%", player_volume);
             continue;
         }
 
         // start: rewind
         if ((int)msg.data == get_input_rec_id() && msg.cmd == PERIPH_BUTTON_LONG_PRESSED) {
-
-            ESP_LOGI(TAG, "rewind start");
+            ESP_LOGI(TAG_SOUND, "rewind, start");
+            audio_pipeline_pause(pipeline);
+            start = time(NULL);
             continue;
         }
 
         // stop: rewind
         if ((int)msg.data == get_input_rec_id() && msg.cmd == PERIPH_BUTTON_LONG_RELEASE) {
-
-            ESP_LOGI(TAG, "rewind stop");
+            double seconds = difftime(time(NULL), start);
+            ESP_LOGI(TAG_SOUND, "rewind, stop, seconds=%f", seconds);
+            audio_element_info_t info = {0};
+            audio_element_getinfo(fatfs_stream_reader, &info);
+            int64_t byte_offset = ((int64_t) (((double) (info.total_bytes / 100)) * seconds));
+            ESP_LOGI(TAG_SOUND, "rewind, current byte_pos=%" PRId64 ", byte_offset=%" PRId64 ", bytes=%" PRId64, info.byte_pos, byte_offset, info.total_bytes);
+            if ((info.byte_pos - byte_offset) >= 0) {
+                info.byte_pos -= byte_offset;
+            } else {
+                info.byte_pos = 0;
+            }
+            audio_element_setinfo(fatfs_stream_reader, &info);
+            audio_pipeline_resume(pipeline);
             continue;
         }
 
@@ -256,21 +299,33 @@ static void sound_task(void *arg) {
             audio_hal_set_volume(board_handle->audio_hal, player_volume);
             ESP_ERROR_CHECK(nvs_set_i32(nvs_handle, "volume", player_volume));
             ESP_ERROR_CHECK(nvs_commit(nvs_handle));
-            ESP_LOGI(TAG, "Volume increased to %d %%", player_volume);
+            ESP_LOGI(TAG_SOUND, "Volume increased to %d %%", player_volume);
             continue;
         }
 
         // start: fast-forward
         if ((int)msg.data == get_input_mode_id() && msg.cmd == PERIPH_BUTTON_LONG_PRESSED) {
-            
-            ESP_LOGI(TAG, "fast-forward start");
+            ESP_LOGI(TAG_SOUND, "fast-forward, start");
+            audio_pipeline_pause(pipeline);
+            start = time(NULL);
             continue;
         }
 
         // stop: fast-forward
         if ((int)msg.data == get_input_mode_id() && msg.cmd == PERIPH_BUTTON_LONG_RELEASE) {
-            
-            ESP_LOGI(TAG, "fast-forward stop");
+            double seconds = difftime(time(NULL), start);
+            ESP_LOGI(TAG_SOUND, "fast-forward, stop, seconds=%f", seconds);
+            audio_element_info_t info = {0};
+            audio_element_getinfo(fatfs_stream_reader, &info);
+            int64_t byte_offset = ((int64_t) (((double) (info.total_bytes / 100)) * seconds));
+            ESP_LOGI(TAG_SOUND, "fast-forward, current byte_pos=%" PRId64 ", byte_offset=%" PRId64 ", bytes=%" PRId64, info.byte_pos, byte_offset, info.total_bytes);
+            if ((info.byte_pos + byte_offset) < info.total_bytes) {
+                info.byte_pos += byte_offset;
+            } else {
+                info.byte_pos = info.total_bytes - 100000;
+            }
+            audio_element_setinfo(fatfs_stream_reader, &info);
+            audio_pipeline_resume(pipeline);
             continue;
         }
 
@@ -280,7 +335,7 @@ static void sound_task(void *arg) {
             audio_element_info_t music_info = {0};
             audio_element_getinfo(mp3_decoder, &music_info);
 
-            ESP_LOGI(TAG, "Receive music info from mp3 decoder, sample_rates=%d, bits=%d, ch=%d",
+            ESP_LOGI(TAG_SOUND, "Receive music info from mp3 decoder, sample_rates=%d, bits=%d, ch=%d",
                     music_info.sample_rates, music_info.bits, music_info.channels);
 
             audio_element_setinfo(i2s_stream_writer, &music_info);
@@ -292,36 +347,41 @@ static void sound_task(void *arg) {
         if (msg.source_type == AUDIO_ELEMENT_TYPE_ELEMENT && msg.source == (void *) i2s_stream_writer
             && msg.cmd == AEL_MSG_CMD_REPORT_STATUS
             && (((int)msg.data == AEL_STATUS_STATE_STOPPED) || ((int)msg.data == AEL_STATUS_STATE_FINISHED))) {
-            ESP_LOGW(TAG, "End of MP3");
+            ESP_LOGW(TAG_SOUND, "End of MP3");
             continue;
         }
     }
 
-    ESP_LOGI(TAG, "Stop audio_pipeline");
+    ESP_LOGI(TAG_SOUND, "Terminate");
     audio_pipeline_terminate(pipeline);
 
     nvs_close(nvs_handle);
 
+    ESP_LOGI(TAG_SOUND, "Unregister");
     audio_pipeline_unregister(pipeline, fatfs_stream_reader);
     audio_pipeline_unregister(pipeline, i2s_stream_writer);
     audio_pipeline_unregister(pipeline, mp3_decoder);
 
-    /* Terminate the pipeline before removing the listener */
+    ESP_LOGI(TAG_SOUND, "Remove listener");
     audio_pipeline_remove_listener(pipeline);
 
-    /* Stop all periph before removing the listener */
+    ESP_LOGI(TAG_SOUND, "Stop periph");
     esp_periph_set_stop_all(set);
     audio_event_iface_remove_listener(esp_periph_set_get_event_iface(set), evt);
 
-    /* Make sure audio_pipeline_remove_listener & audio_event_iface_remove_listener are called before destroying event_iface */
+    ESP_LOGI(TAG_SOUND, "Make sure audio_pipeline_remove_listener & audio_event_iface_remove_listener are called before destroying event_iface");
     audio_event_iface_destroy(evt);
 
-    /* Release all resources */
+    ESP_LOGI(TAG_SOUND, "Release all resources");
     audio_pipeline_deinit(pipeline);
     audio_element_deinit(fatfs_stream_reader);
     audio_element_deinit(i2s_stream_writer);
     audio_element_deinit(mp3_decoder);
-    esp_periph_set_destroy(set);
+    //esp_periph_set_destroy(set); // TODO causes panic
+
+    ESP_LOGI(TAG_SOUND, "Bye, sleep");
+
+    xTaskCreate(play_beep_task, "Beep", 4096, NULL, configMAX_PRIORITIES - 2, NULL);
 
     vTaskDelete(NULL);
 }
@@ -388,11 +448,22 @@ void app_main(void)
 {
     esp_log_level_set("*", ESP_LOG_WARN);
     esp_log_level_set(TAG, ESP_LOG_VERBOSE);
+    esp_log_level_set(TAG_RFID, ESP_LOG_VERBOSE);
+    esp_log_level_set(TAG_SOUND, ESP_LOG_VERBOSE);
     esp_log_level_set("FATFS_STREAM", ESP_LOG_VERBOSE);
     esp_log_level_set("SDCARD", ESP_LOG_VERBOSE);
     esp_log_level_set("AUDIO_BOARD", ESP_LOG_VERBOSE);
     esp_log_level_set("PERIPH_BUTTON", ESP_LOG_VERBOSE);
     esp_log_level_set("PERIPH_TOUCH", ESP_LOG_VERBOSE);
+
+    switch (esp_sleep_get_wakeup_cause()) {
+        case ESP_SLEEP_WAKEUP_TIMER:
+            ESP_LOGI(TAG, "wakeup");
+            xTaskCreate(play_beep_task, "Beep", 4096, NULL, configMAX_PRIORITIES - 2, NULL);
+            return;
+        default:
+            ESP_LOGI(TAG, "hello");
+    }
 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
