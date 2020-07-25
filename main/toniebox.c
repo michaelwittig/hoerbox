@@ -219,7 +219,10 @@ static void sound_task(void *arg) {
         ESP_ERROR_CHECK(ret);
     }
 
-    time_t start = time(NULL);
+    time_t rewind_start = time(NULL);
+    bool rewind = false;
+    time_t fastforward_start = time(NULL);
+    bool fastforward = false;
 
     ESP_LOGI(TAG_SOUND, "Listen for all pipeline events");
     while (1) {
@@ -266,25 +269,31 @@ static void sound_task(void *arg) {
         if ((int)msg.data == get_input_rec_id() && msg.cmd == PERIPH_BUTTON_LONG_PRESSED) {
             ESP_LOGI(TAG_SOUND, "rewind, start");
             audio_pipeline_pause(pipeline);
-            start = time(NULL);
+            rewind = true;
+            rewind_start = time(NULL);
             continue;
         }
 
         // stop: rewind
         if ((int)msg.data == get_input_rec_id() && msg.cmd == PERIPH_BUTTON_LONG_RELEASE) {
-            double seconds = difftime(time(NULL), start);
+            double seconds = difftime(time(NULL), rewind_start);
             ESP_LOGI(TAG_SOUND, "rewind, stop, seconds=%f", seconds);
             audio_element_info_t info = {0};
             audio_element_getinfo(fatfs_stream_reader, &info);
             int64_t byte_offset = ((int64_t) (((double) (info.total_bytes / 100)) * seconds));
             ESP_LOGI(TAG_SOUND, "rewind, current byte_pos=%" PRId64 ", byte_offset=%" PRId64 ", bytes=%" PRId64, info.byte_pos, byte_offset, info.total_bytes);
-            if ((info.byte_pos - byte_offset) >= 0) {
-                info.byte_pos -= byte_offset;
-            } else {
+            if (fastforward == true && rewind == true) { // both button pushed, reset to begin
                 info.byte_pos = 0;
+            } else {
+                if ((info.byte_pos - byte_offset) >= 0) {
+                    info.byte_pos -= byte_offset;
+                } else {
+                    info.byte_pos = 0;
+                }
             }
             audio_element_setinfo(fatfs_stream_reader, &info);
             audio_pipeline_resume(pipeline);
+            rewind = false;
             continue;
         }
 
@@ -307,23 +316,29 @@ static void sound_task(void *arg) {
         if ((int)msg.data == get_input_mode_id() && msg.cmd == PERIPH_BUTTON_LONG_PRESSED) {
             ESP_LOGI(TAG_SOUND, "fast-forward, start");
             audio_pipeline_pause(pipeline);
-            start = time(NULL);
+            fastforward = true;
+            fastforward_start = time(NULL);
             continue;
         }
 
         // stop: fast-forward
         if ((int)msg.data == get_input_mode_id() && msg.cmd == PERIPH_BUTTON_LONG_RELEASE) {
-            double seconds = difftime(time(NULL), start);
+            double seconds = difftime(time(NULL), fastforward_start);
             ESP_LOGI(TAG_SOUND, "fast-forward, stop, seconds=%f", seconds);
             audio_element_info_t info = {0};
             audio_element_getinfo(fatfs_stream_reader, &info);
             int64_t byte_offset = ((int64_t) (((double) (info.total_bytes / 100)) * seconds));
             ESP_LOGI(TAG_SOUND, "fast-forward, current byte_pos=%" PRId64 ", byte_offset=%" PRId64 ", bytes=%" PRId64, info.byte_pos, byte_offset, info.total_bytes);
-            if ((info.byte_pos + byte_offset) < info.total_bytes) {
-                info.byte_pos += byte_offset;
+            if (fastforward == true && rewind == true) { // both button pushed, reset to begin
+                info.byte_pos = 0;
             } else {
-                info.byte_pos = info.total_bytes - 100000;
+                if ((info.byte_pos + byte_offset) < info.total_bytes) {
+                    info.byte_pos += byte_offset;
+                } else {
+                    info.byte_pos = info.total_bytes - 100000;
+                }
             }
+            fastforward = false;
             audio_element_setinfo(fatfs_stream_reader, &info);
             audio_pipeline_resume(pipeline);
             continue;

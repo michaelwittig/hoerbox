@@ -26,6 +26,11 @@ git checkout v2.0
 git submodule update --init --recursive
 ```
 
+## Features
+
+* Auge kurz drücken: lauter/leiser
+* Auge lang drücken: spulen (je länger, desto mehr)
+* Beide Augen lange drücken: MP3 zurücksetzen auf Anfang
 
 ## TODO
 
@@ -34,6 +39,6 @@ git submodule update --init --recursive
 - [x] Store volume and read value on start
 - [x] turn off if no music is played for x minutes
 - [ ] write empty file with TAG no if file is not found
-- [ ] Reset last played position by pressing both keys long?
+- [x] Reset last played position by pressing both keys long?
 - [x] fast forward / rewind
 - [ ] can we us the internal event system to connect I2C/RFID?
