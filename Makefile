@@ -1,2 +1,2 @@
-PROJECT_NAME := toniebox
+PROJECT_NAME := hoerbox
 include $(ADF_PATH)/project.mk

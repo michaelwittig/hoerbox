@@ -1,4 +1,4 @@
-# toniebox
+# hörbox
 
 ## Setup env
 ```
