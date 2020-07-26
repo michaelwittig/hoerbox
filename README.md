@@ -28,6 +28,8 @@ git submodule update --init --recursive
 
 ## Features
 
+> Neue MP3s am besten durch https://auphonic.com/ laufen lassen damit die Lautstärke gleichmäßig ist.
+
 * Auge kurz drücken: lauter/leiser
 * Auge lang drücken: spulen (je länger, desto mehr)
 * Beide Augen lange drücken: MP3 zurücksetzen auf Anfang
