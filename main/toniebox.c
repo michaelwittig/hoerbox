@@ -36,7 +36,7 @@ static const char *TAG_RFID = "RFID";
 
 #define SLEEP_IN_MICRO_SECONDS 90000000
 #define SHUTDOWN_IF_NO_TAGS_CONSECUTIVELY 300
-#define VOLUME_MAX 70
+#define VOLUME_MAX 50
 
 static void beep_task(void *arg) { // do noot execute togehter with sound_task!
     audio_pipeline_handle_t pipeline;
