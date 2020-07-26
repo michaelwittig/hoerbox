@@ -399,8 +399,8 @@ static void sound_task(void *arg) { // controlled by rfid_task
                 int player_volume;
                 audio_hal_get_volume(board_handle->audio_hal, &player_volume);
                 player_volume -= 3;
-                if (player_volume < 0) {
-                    player_volume = 0;
+                if (player_volume < 3) {
+                    player_volume = 3;
                 }
                 audio_hal_set_volume(board_handle->audio_hal, player_volume);
                 ESP_LOGI(TAG_SOUND, "Volume decreased to %d %%", player_volume);
