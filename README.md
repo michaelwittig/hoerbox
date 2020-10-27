@@ -2,7 +2,7 @@
 
 DIY MP3 player for kids.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/Yf6WE-lvUVw" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[![Demo video](./doc/demo.png)](https://youtu.be/Yf6WE-lvUVw)
 
 ## Features
 
