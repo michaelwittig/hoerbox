@@ -88,6 +88,12 @@ TODO add pictures
 
 ## Software 
 
+### Docs
+
+* https://docs.espressif.com/projects/esp-adf/en/latest/get-started/get-started-esp32-lyrat.html
+* https://docs.espressif.com/projects/esp-adf/en/latest/design-guide/board-esp32-lyrat-v4.3.html
+
+
 ### Setup env
 
 > Requires Python 2.7 (we use https://github.com/pyenv/pyenv)
