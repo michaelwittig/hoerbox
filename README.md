@@ -65,6 +65,7 @@ You likely find better prices. I tried to keep the number of suppliers low.
 
 ### Setup env
 
+> Requires Python 2.7 (we use https://github.com/pyenv/pyenv)
 > Requires [ESP ADF v2.0](https://docs.espressif.com/projects/esp-adf/en/v2.0/get-started/index.html)
 
 ```
