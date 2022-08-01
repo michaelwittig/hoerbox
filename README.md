@@ -20,22 +20,29 @@ I process all my MP3 with https://auphonic.com/ to ensure a consistent noice lev
 
 ### Parts list
 
-| Part                              | ~Price | Sample Supplier |
-| --------------------------------- | ------ | --------------- |
-| 1 x ESP32 LyraT V4.3              | 18€    | [mouser](https://www.mouser.de/ProductDetail/Espressif-Systems/ESP32-LyraT?qs=MLItCLRbWsxPzPCja546ZA%3D%3D) |
-| 1 x Li Ion 3,7V Single Cell       | 8,94€  | [Eckstein](https://eckstein-shop.de/LiPo-Akku-Lithium-Ion-Polymer-Batterie-37V-2500mAh-JST-PH-Connector) |
-| 2 x JST-PH 2,0mm Stecker (+Kabel) | 6,13€  | [Eckstein](https://eckstein-shop.de/JST-PH-20mm-Stecker-Draht-mit-JST-PH-Buchse-Kit-20-Paare-2-Pin) |
-| 2 x Lautsprecher 4 Ohms, 3 W      | 3,81€  | [mouser](https://www.mouser.de/ProductDetail/PUI-Audio/AS07104PO-R?qs=sGAEpiMZZMuTkJYgZlQcSbW9ML0uaZ6LpGpDDijgikQ%3D) |
-| 1 x MicroSD Card 16 GB            | 9,25€  | [mouser](https://www.mouser.de/ProductDetail/SanDisk/SDSDQAB-016G?qs=sGAEpiMZZMtyMAXUUxCBE9Ul6KnuQP9qFKjsXIXONRD3eiWF76rYPA%3D%3D) |
-| 1 x RFID/NFC reader RC522 (I2C)   | 2,55€  | [ebay](https://www.ebay.de/itm/13-56MHz-I2C-SPI-Interface-IC-RC522-RFID-Read-Write-Card-Module-IC-Keychain/153189301847) |
-| 10 x RFID/NFC Tags                | 4,95€  | [ebay](https://www.ebay.de/itm/10-Stuck-NFC-Tags-Sticker-13-56MHz-Ntag213-rund-25mm-ISO14443A-NTAG-213/123385943615?hash=item1cba60163f:g:PHIAAOSwxORdrI~e) |
-| 1 x male-female jumper wires      | 4,43€  | [mouser](https://www.mouser.de/ProductDetail/BusBoard-Prototype-Systems/ZW-MF-10?qs=sGAEpiMZZMvh1pRuiUVjFQYodzHG%2F8cVnmC7Fx2tpUfKBfCMTbIqCA%3D%3D) |
+| Part                                             | ~Price | Sample Supplier |
+| ------------------------------------------------ | ------ | --------------- |
+| 1 x ESP32 LyraT V4.3                             | 18,00€ | [mouser](https://www.mouser.de/ProductDetail/356-ESP32-LYRAT) |
+| 1 x LiPo Akku 3,7V 2500mAh (JST-PHR-2 Connector) |  8,94€ | [Eckstein](https://eckstein-shop.de/LiPoAkkuLithium-IonPolymerBatterie32C7V2500mAhJST-PHConnector) |
+| 1 x JST-PH 2,0mm (20 Paare) 2 Pin                |  4,19€ | [Eckstein](https://eckstein-shop.de/JST-PH22C0mmStecker26DrahtmitJST-PHBuchseKit20Paare2Pin) |
+| 2 x Lautsprecher 4 Ohms, 3 W                     |  8,14€ | [mouser](https://www.mouser.de/ProductDetail/665-AS07104PO-R) |
+| 1 x MicroSD Card 16 GB                           | 12,19€ | [mouser](https://www.mouser.de/ProductDetail/467-SDSDQAB-016G-J) |
+| 2 x Pushbutton switch Off (On)                   | 11,60€ | [mouser](https://www.mouser.de/ProductDetail/612-PV2F240NN) |
+| 1 x male-female jumper wires (10 pieces)         |  4,43€ | [mouser](https://mou.sr/3SfRufG) |
+| 1 x On/Off switch                                |        | | 
+| 1 x Fuse                                         |        | |
+| 1 x Fuse holder                                  |        | |
+| 1 x RFID/NFC reader RC522 I2C v1.1               |  6,08€ | [AliExpress](https://de.aliexpress.com/item/32790073855.html) |
+| 1 x RFID/NFC Tags (10 pieces)                    |  4,95€ | [ebay](https://www.ebay.de/itm/10-Stuck-NFC-Tags-Sticker-13-56MHz-Ntag213-rund-25mm-ISO14443A-NTAG-213/123385943615?hash=item1cba60163f:g:PHIAAOSwxORdrI~e) |
 
-> You will find all parts for better prices if you order them directly from China. 
+You likely find better prices. I tried to keep the number of suppliers low.
 
 ### Wiring
 
 ![RFID Reader](./doc/wiring-rfid-reader.jpg)
+
+> **WARNING**
+> The polarity of the battery connector does not match the polarity on the board! I had to pull out the socket on the board and turn it 180°.
 
 ![RFID Board](./doc/wiring-rfid-board.jpg)
 
