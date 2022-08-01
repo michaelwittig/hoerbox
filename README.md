@@ -113,6 +113,8 @@ Press and hold <Boot> button, press <Reset> button and release <Boot> button.
 make flash monitor -j5
 ```
 
+press <Reset> to start application
+
 ### ESP ADF version used
 
 Inside `~/esp/esp-adf`:
