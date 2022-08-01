@@ -37,24 +37,49 @@ I process all my MP3 with https://auphonic.com/ to ensure a consistent noice lev
 
 You likely find better prices. I tried to keep the number of suppliers low.
 
-### Wiring
+TODO add fuse details
 
-![RFID Reader](./doc/wiring-rfid-reader.jpg)
+### Wiring
 
 > **WARNING**
 > The polarity of the battery connector does not match the polarity on the board! I had to pull out the socket on the board and turn it 180°.
 
-![RFID Board](./doc/wiring-rfid-board.jpg)
+#### RFID reader
 
-![RFID Reader](./doc/wiring-eyes.jpg)
+![RFID reader](./doc/wiring-rfid-reader.jpg)
+
+#### RFID reader to board
+
+![RFID reader to board](./doc/wiring-rfid-board.jpg)
+
+#### Pushbutton switches (eyes) to board
+
+![Pushbutton switches (eyes) to board](./doc/wiring-eyes.jpg)
+
+#### Battery to board
+
+I'm not sure if the fuse is needed and properly sized. It feels better to have one :)
+
+TODO add pictures
 
 ### Wooden box
+
+Wood thickness: 10mm
+
+* A: 116mm x 116mm
+* B: 116mm x 116mm
+* C: 116mm x 96mm
+* D: 96mm x 96mm
+* E: 116m x 96mm
+* F: 96m x 96mm
 
 ![From botton](./doc/box-from-bottom.png)
 
 ![From bottom](./doc/box-from-top.png)
 
 ![From behind](./doc/box-from-behind.png)
+
+TODO add pictures
 
 * [Side C](./doc/box-c.pdf)
 * [Side D](./doc/box-d.pdf)
