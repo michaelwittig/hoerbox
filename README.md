@@ -115,6 +115,14 @@ make flash monitor -j5
 
 press <Reset> to start application
 
+### Can not connect to device
+
+The following command might help:
+
+```
+make erase_flash
+```
+
 ### ESP ADF version used
 
 Inside `~/esp/esp-adf`:
