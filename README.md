@@ -14,7 +14,17 @@ DIY MP3 player for kids.
 
 ## Hints
 
-I process all my MP3 with https://auphonic.com/ to ensure a consistent noice level.
+
+I combine multiple MP3s into one MP3 using:
+```bash
+audio-join() ffmpeg -i "concat:${(j:|:)@[2,-1]}" -acodec copy $1
+audio-join output.mp3 *.mp3
+```
+
+I pre-process all my MP3s using:
+```bash
+ffmpeg -i 8853ade395.mp3 -acodec libmp3lame -ac 2 -ab 128k -ar 44100 8853ade395_.mp3
+```
 
 ## Hardware
 
@@ -26,7 +36,7 @@ I process all my MP3 with https://auphonic.com/ to ensure a consistent noice lev
 | 1 x LiPo Akku 3,7V 2500mAh (JST-PHR-2 Connector) |  8,94€ | [Eckstein](https://eckstein-shop.de/LiPoAkkuLithium-IonPolymerBatterie32C7V2500mAhJST-PHConnector) |
 | 1 x JST-PH 2,0mm (20 Paare) 2 Pin                |  4,19€ | [Eckstein](https://eckstein-shop.de/JST-PH22C0mmStecker26DrahtmitJST-PHBuchseKit20Paare2Pin) |
 | 2 x Lautsprecher 4 Ohms, 3 W                     |  8,14€ | [mouser](https://www.mouser.de/ProductDetail/665-AS07104PO-R) |
-| 1 x MicroSD Card 16 GB                           | 12,19€ | [mouser](https://www.mouser.de/ProductDetail/467-SDSDQAB-016G-J) |
+| 1 x MicroSD Card 16 GB                           | 12,19€ | [mouser](https://www.mouser.de/ProductDetail/467-SDSDQAB-016G-J) oder [mouser](https://www.mouser.de/ProductDetail/467-SDSDQAB-016G) |
 | 2 x Pushbutton switch Off (On)                   | 11,60€ | [mouser](https://www.mouser.de/ProductDetail/612-PV2F240NN) |
 | 1 x male-female jumper wires (10 pieces)         |  4,43€ | [mouser](https://mou.sr/3SfRufG) |
 | 1 x On/Off switch                                |        | | 
@@ -102,7 +112,7 @@ TODO add pictures
 ```
 /bin/bash
 export ADF_PATH=$HOME/esp/esp-adf
-. $HOME/esp/esp-adf/esp-idf/export.sh
+. $HOME/esp/esp-idf/export.sh
 ```
 
 ### Build / Flash
@@ -129,6 +139,6 @@ Inside `~/esp/esp-adf`:
 
 ```bash
 git fetch
-git checkout v2.0
+git checkout v2.5
 git submodule update --init --recursive
 ```

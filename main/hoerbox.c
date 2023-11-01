@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "esp_sleep.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "sdkconfig.h"
@@ -17,7 +18,6 @@
 #include "i2s_stream.h"
 #include "mp3_decoder.h"
 #include "filter_resample.h"
-
 #include "esp_peripherals.h"
 #include "periph_sdcard.h"
 #include <driver/i2c.h>
@@ -36,7 +36,7 @@ static const char *TAG_RFID = "RFID";
 
 #define SLEEP_IN_MICRO_SECONDS 90000000
 #define SHUTDOWN_IF_NO_TAGS_CONSECUTIVELY 300
-#define VOLUME_MAX 50
+#define VOLUME_MAX 70
 
 static void beep_task(void *arg) { // do noot execute togehter with sound_task!
     audio_pipeline_handle_t pipeline;
@@ -48,7 +48,7 @@ static void beep_task(void *arg) { // do noot execute togehter with sound_task!
 
     ESP_LOGD(TAG_BEEP, "Initialize and start peripherals");
     audio_board_key_init(set);
-    audio_board_sdcard_init(set);
+    audio_board_sdcard_init(set, SD_MODE_1_LINE);
 
     ESP_LOGD(TAG_BEEP, "Start codec chip");
     audio_board_handle_t board_handle = audio_board_init();
@@ -222,9 +222,11 @@ static void rfid_task(void *arg) { // requires sound_task!
         }
 
         if (strcmp(previous_no, no) != 0) { // tag changed
-            // stop pipelie
-            audio_pipeline_stop(pipeline);
-            audio_pipeline_wait_for_stop(pipeline);
+            if (previous_no[0] != 0) { // stop pipeline
+                audio_pipeline_stop(pipeline);
+                audio_pipeline_wait_for_stop(pipeline);
+                audio_pipeline_terminate(pipeline);
+            }
             if (no[0] == 0) {
                 ESP_LOGI(TAG_RFID, "Stop");
             } else {
@@ -283,6 +285,7 @@ static void rfid_task(void *arg) { // requires sound_task!
 
             strcpy(previous_no, no);
         }
+
         vTaskDelay(2000 / portTICK_RATE_MS);
     }
 
@@ -302,7 +305,7 @@ static void sound_task(void *arg) { // controlled by rfid_task
 
     ESP_LOGD(TAG_SOUND, "Initialize and start peripherals");
     audio_board_key_init(set);
-    audio_board_sdcard_init(set);
+    audio_board_sdcard_init(set, SD_MODE_1_LINE);
 
     ESP_LOGD(TAG_SOUND, "Start codec chip");
     audio_board_handle_t board_handle = audio_board_init();
@@ -677,13 +680,13 @@ static void list_sdcard_task(void *arg) {
     esp_periph_config_t periph_cfg = DEFAULT_ESP_PERIPH_SET_CONFIG();
     esp_periph_set_handle_t set = esp_periph_set_init(&periph_cfg);
 
-    audio_board_sdcard_init(set);
+    audio_board_sdcard_init(set, SD_MODE_1_LINE);
 
     sdcard_scan(list_sdcard_db, "/sdcard", 5, (const char *[]) {"mp3"}, 1, NULL);
 
     esp_periph_set_stop_all(set);
 
-    esp_periph_set_destroy(set);
+    //esp_periph_set_destroy(set); // TODO causes panic
 
     vTaskDelete(NULL);
 }
@@ -715,10 +718,10 @@ void app_main(void)
             return;
         default:
             ESP_LOGI(TAG, "hello");
-    }
-    
-    //xTaskCreate(i2cscanner_task, "I2CScanner", 2048, NULL, configMAX_PRIORITIES - 3, NULL);
-    //xTaskCreate(list_sdcard_task, "ListSDCard", 2048, NULL, configMAX_PRIORITIES - 3, NULL);
 
-    xTaskCreate(sound_task, "MP3", 4096, NULL, configMAX_PRIORITIES - 1, NULL);
+            //xTaskCreate(i2cscanner_task, "I2CScanner", 2048, NULL, configMAX_PRIORITIES - 3, NULL);
+            //xTaskCreate(list_sdcard_task, "ListSDCard", 2048, NULL, configMAX_PRIORITIES - 3, NULL);
+            xTaskCreate(sound_task, "MP3", 4096, NULL, configMAX_PRIORITIES - 1, NULL);
+            return;
+    }
 } 
