@@ -255,7 +255,12 @@ static void rfid_task(void *arg) { // requires sound_task!
                             ESP_LOGI(TAG_RFID, "Previous position found for %s: %" PRId64, no, position);
                             audio_element_info_t info = {0};
                             audio_element_getinfo(fatfs_stream_reader, &info);
-                            info.byte_pos = position;
+                            if (position > info.total_bytes) {
+                                ESP_LOGI(TAG_RFID, "Previous position for %s outside of total bytes: %" PRId64, no, info.total_bytes);
+                                info.byte_pos = 0;
+                            } else {
+                                info.byte_pos = position;
+                            }
                             audio_element_setinfo(fatfs_stream_reader, &info);
                         } else {
                             ESP_ERROR_CHECK(ret2);
